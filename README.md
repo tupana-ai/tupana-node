@@ -67,7 +67,7 @@ for (const doc of result.documents) {
 }
 ```
 
-`createBatch` acepta hasta **200 documentos** por llamada. Para cargas más grandes, divide en lotes (mira el ejemplo de [emisión masiva desde CSV](https://github.com/tupana-ai/tupana-examples)).
+`createBatch` acepta hasta **500 documentos** por llamada. Para cargas más grandes, divide en lotes (mira el ejemplo de [emisión masiva desde CSV](https://github.com/tupana-ai/tupana-examples)).
 
 ### Borradores y vista previa
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-10-20)
+
+- Publicado en npm como `tupana` (reemplaza a `@tupana-ai/sdk`).
+- `documents.createBatch` acepta hasta 500 documentos por llamada, el límite real de la API.
+- Publicación desde GitHub Actions con trusted publishing (OIDC), sin tokens.
+
 ## 0.1.0 (2026-10-20)
 
 Primera versión pública.
