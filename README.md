@@ -6,6 +6,10 @@
 
 SDK oficial de la [API v2 de Tupana](https://docs.tupana.ai): facturación electrónica ante el SII, links de pago (recaudación), cesión de facturas y webhooks, desde Node.js, Bun, Deno o cualquier runtime con `fetch`.
 
+```bash
+npm install tupana
+```
+
 - Tipado completo, derivado del OpenAPI v2 de Tupana.
 - Cero dependencias en runtime (usa el `fetch` nativo). Node 18 o superior.
 - Reintentos automáticos con backoff ante `429` y `5xx`, respetando `Retry-After`.
@@ -18,13 +22,10 @@ SDK oficial de la [API v2 de Tupana](https://docs.tupana.ai): facturación elect
 
 ```bash
 npm install tupana
+# o: pnpm add tupana · yarn add tupana · bun add tupana
 ```
 
-Mientras publicamos la primera versión en npm, puedes instalarlo directo desde GitHub:
-
-```bash
-npm install github:tupana-ai/tupana-node
-```
+Paquete en npm: [npmjs.com/package/tupana](https://www.npmjs.com/package/tupana).
 
 ## Antes de empezar
 
@@ -270,11 +271,12 @@ Tupana también tiene un servidor MCP remoto en `https://mcp.tupana.ai/mcp` para
 
 ## Recursos
 
+- Paquete en npm: [npmjs.com/package/tupana](https://www.npmjs.com/package/tupana)
 - Documentación: [docs.tupana.ai](https://docs.tupana.ai)
 - Portal de desarrolladores y API keys: [developers.tupana.ai](https://developers.tupana.ai)
 - Servidor MCP: [github.com/tupana-ai/tupana-mcp](https://github.com/tupana-ai/tupana-mcp)
 - Ejemplos: [github.com/tupana-ai/tupana-examples](https://github.com/tupana-ai/tupana-examples)
-- SDK de Python: [github.com/tupana-ai/tupana-python](https://github.com/tupana-ai/tupana-python)
+- SDK de Python: `pip install tupana` ([PyPI](https://pypi.org/project/tupana/) · [GitHub](https://github.com/tupana-ai/tupana-python))
 
 ## Desarrollo
 
