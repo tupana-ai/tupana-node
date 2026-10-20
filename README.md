@@ -48,7 +48,7 @@ const batch = await tupana.documents.createBatch(
     documents: [
       {
         dte_type: { code: "33" }, // Factura electrónica
-        document_issuer: { rut: "76543210-K" }, // tu empresa
+        document_issuer: { rut: "76543210-3" }, // tu empresa
         document_receiver: { rut: "77777777-7" }, // tu cliente
         details: [{ item_name: "Asesoría contable octubre", quantity: 1, unit_price: 150000 }],
       },
