@@ -1,0 +1,1235 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Tupana API - Recaudación",
+    "description": "API de Cobros — Crea sesiones de pago, procesa cobros y emite DTE automáticamente.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.tupana.ai/v1",
+      "description": "Servidor de producción"
+    }
+  ],
+  "security": [
+    {
+      "apiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/payment-requests/": {
+      "post": {
+        "operationId": "createPaymentRequest",
+        "tags": ["Cobros"],
+        "summary": "Crear sesión de cobro",
+        "description": "Crea una sesión de cobro y retorna la URL de pago a la que debes redirigir al usuario. Si se envía un `external_id` que ya existe para tu API key, retorna la sesión original con HTTP 200 (idempotencia).",
+        "security": [{ "apiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequestCreate"
+              },
+              "examples": {
+                "emission_mode": {
+                  "summary": "Modo emisión (cobrar + emitir un DTE nuevo)",
+                  "value": {
+                    "amount": 50000,
+                    "currency": "CLP",
+                    "recipient_id": 789,
+                    "redirect_url": "https://tuapp.com/confirmation",
+                    "target_dte_type": 39,
+                    "dte_recipient": {
+                      "rut": "11111111-1",
+                      "name": "Juan Soto",
+                      "email": "juan@ejemplo.com"
+                    },
+                    "items": [
+                      {
+                        "description": "Sesión de psicoterapia",
+                        "quantity": 1,
+                        "unit_price": 50000
+                      }
+                    ],
+                    "expires_in_minutes": 30,
+                    "skip_portal": false,
+                    "auto_issue": true,
+                    "external_id": "booking_abc123",
+                    "metadata": {
+                      "patient_name": "Juan Soto",
+                      "appointment_start_time": "2026-04-15T10:00:00-04:00"
+                    }
+                  }
+                },
+                "direct_charge_mode": {
+                  "summary": "Modo cobro directo (cobrar documentos existentes)",
+                  "value": {
+                    "recipient_id": 789,
+                    "redirect_url": "https://tuapp.com/confirmation",
+                    "document_ids": [9871, 9872],
+                    "expires_in_minutes": 30,
+                    "external_id": "collection_session_001",
+                    "metadata": {
+                      "campaign": "cobranza-abril"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sesión de cobro creada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequestResponse"
+                },
+                "example": {
+                  "payment_request_id": 1042,
+                  "status": "pending",
+                  "payment_url": "https://www.tupana.ai/pagos/tok_xyz",
+                  "expires_at": "2026-04-06T12:30:00Z",
+                  "created_at": "2026-04-06T12:00:00Z",
+                  "amount": 50000,
+                  "target_dte_type": "39",
+                  "auto_issue": true,
+                  "external_id": "booking_abc123",
+                  "metadata": {},
+                  "issued_document_id": null,
+                  "document_ids": []
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Sesión existente retornada (idempotencia por `external_id`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetros inválidos",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "examples": {
+                  "recipient_not_found": {
+                    "value": {
+                      "error_code": "RECIPIENT_NOT_FOUND",
+                      "message": "Recipient with id 789 not found."
+                    }
+                  },
+                  "missing_banking_info": {
+                    "value": {
+                      "error_code": "RECIPIENT_MISSING_BANKING_INFO",
+                      "message": "Recipient does not have a registered bank account."
+                    }
+                  },
+                  "invalid_dte_type": {
+                    "value": {
+                      "error_code": "INVALID_TARGET_DTE_TYPE",
+                      "message": "target_dte_type must be one of [33, 39, 41]."
+                    }
+                  },
+                  "cannot_mix_modes": {
+                    "value": {
+                      "error_code": "CANNOT_MIX_MODES",
+                      "message": "document_ids cannot be combined with amount, items."
+                    }
+                  },
+                  "empty_document_ids": {
+                    "value": {
+                      "error_code": "EMPTY_DOCUMENT_IDS",
+                      "message": "document_ids must contain at least one document."
+                    }
+                  },
+                  "document_not_found": {
+                    "value": {
+                      "error_code": "DOCUMENT_NOT_FOUND",
+                      "message": "Documents not found: [9999]."
+                    }
+                  },
+                  "document_not_owned_by_recipient": {
+                    "value": {
+                      "error_code": "DOCUMENT_NOT_OWNED_BY_RECIPIENT",
+                      "message": "Document 9871 is not owned by recipient 789."
+                    }
+                  },
+                  "mixed_payers": {
+                    "value": {
+                      "error_code": "MIXED_PAYERS",
+                      "message": "All documents in a payment request must share the same receiver."
+                    }
+                  },
+                  "document_already_paid": {
+                    "value": {
+                      "error_code": "DOCUMENT_ALREADY_PAID",
+                      "message": "Document 9871 is already paid."
+                    }
+                  },
+                  "document_not_payable": {
+                    "value": {
+                      "error_code": "DOCUMENT_NOT_PAYABLE",
+                      "message": "Document 9871 has a non-payable DTE type 61."
+                    }
+                  },
+                  "document_not_sandbox": {
+                    "value": {
+                      "error_code": "DOCUMENT_NOT_SANDBOX",
+                      "message": "Document 9871 is not a sandbox document (folio must start with 'SANDBOX' when using a sandbox API key)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "API key inválida o no proporcionada"
+          }
+        }
+      },
+      "get": {
+        "operationId": "listPaymentRequests",
+        "tags": ["Cobros"],
+        "summary": "Listar cobros",
+        "description": "Retorna todas las sesiones de cobro creadas por el cliente API autenticado, ordenadas por fecha de creación descendente. Soporta filtro por estado.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filtrar por estado de la sesión.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "paid", "issued", "failed", "expired", "refunded"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de cobros obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentRequestListResponse" },
+                "example": {
+                  "results": [
+                    {
+                      "payment_request_id": 1042,
+                      "status": "issued",
+                      "payment_url": "https://www.tupana.ai/pagos/tok_xyz",
+                      "expires_at": "2026-04-06T12:30:00Z",
+                      "created_at": "2026-04-06T12:00:00Z",
+                      "amount": 50000,
+                      "target_dte_type": "39",
+                      "auto_issue": true,
+                      "external_id": "booking_abc123",
+                      "metadata": {},
+                      "issued_document_id": 9871,
+                      "document_ids": []
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" }
+        }
+      }
+    },
+    "/payment-requests/{payment_request_id}/": {
+      "get": {
+        "operationId": "getPaymentRequest",
+        "tags": ["Cobros"],
+        "summary": "Consultar estado de un cobro",
+        "description": "Retorna el estado actual y los detalles de una sesión de cobro. Útil como fallback cuando el webhook aún no llegó pero el usuario ya regresó por redirect.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "payment_request_id",
+            "in": "path",
+            "required": true,
+            "description": "ID numérico de la sesión de cobro.",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la sesión de cobro",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentRequestResponse" },
+                "example": {
+                  "payment_request_id": 1042,
+                  "status": "paid",
+                  "payment_url": "https://www.tupana.ai/pagos/tok_xyz",
+                  "expires_at": "2026-04-06T12:30:00Z",
+                  "created_at": "2026-04-06T12:00:00Z",
+                  "amount": 50000,
+                  "target_dte_type": "39",
+                  "auto_issue": true,
+                  "external_id": "booking_abc123",
+                  "metadata": {},
+                  "issued_document_id": null,
+                  "document_ids": []
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "404": {
+            "description": "Sesión no encontrada o no pertenece a tu API key"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updatePaymentRequest",
+        "tags": ["Cobros"],
+        "summary": "Emitir DTE manualmente",
+        "description": "Transiciona la sesión de cobro a `issued` emitiendo el DTE del tipo indicado en `target_dte_type`. Solo disponible cuando la sesión está en estado `paid` (típicamente por haberla creado con `auto_issue=false`).",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "payment_request_id",
+            "in": "path",
+            "required": true,
+            "description": "ID numérico de la sesión de cobro.",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["issued"],
+                    "description": "Estado al que se quiere transicionar la sesión. Por ahora solo se acepta `issued`."
+                  }
+                }
+              },
+              "example": { "status": "issued" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión transicionada a `issued`",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentRequestResponse" },
+                "example": {
+                  "payment_request_id": 1042,
+                  "status": "issued",
+                  "payment_url": "https://www.tupana.ai/pagos/tok_xyz",
+                  "expires_at": "2026-04-06T12:30:00Z",
+                  "created_at": "2026-04-06T12:00:00Z",
+                  "amount": 50000,
+                  "target_dte_type": "39",
+                  "auto_issue": false,
+                  "external_id": "booking_abc123",
+                  "metadata": {},
+                  "issued_document_id": 9871,
+                  "document_ids": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No se puede emitir el DTE",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "examples": {
+                  "invalid_status": {
+                    "value": {
+                      "error_code": "INVALID_STATUS",
+                      "message": "Only {\"status\": \"issued\"} is supported."
+                    }
+                  },
+                  "already_issued": {
+                    "value": {
+                      "error_code": "ALREADY_ISSUED",
+                      "message": "Document has already been issued."
+                    }
+                  },
+                  "not_paid": {
+                    "value": {
+                      "error_code": "NOT_PAID",
+                      "message": "Payment request has not been paid yet."
+                    }
+                  },
+                  "not_applicable": {
+                    "value": {
+                      "error_code": "NOT_APPLICABLE",
+                      "message": "Payment request charges existing documents and has nothing to issue."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "404": { "description": "Sesión no encontrada o no pertenece a tu API key" }
+        }
+      }
+    },
+    "/master-entities/{master_entity_id}/banking-info/": {
+      "get": {
+        "operationId": "getBankingInfo",
+        "tags": ["Cuenta bancaria"],
+        "summary": "Consultar cuenta bancaria",
+        "description": "Retorna la cuenta bancaria registrada para el destinatario.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity).",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cuenta bancaria del destinatario",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BankingInfoResponse" },
+                "example": {
+                  "id": 456,
+                  "bank": 7,
+                  "bank_detail": {
+                    "id": 7,
+                    "name": "BANCO SANTANDER-CHILE",
+                    "sbif_code": "037",
+                    "additional_brands": "Banefe",
+                    "is_active": true
+                  },
+                  "account_type": "checking",
+                  "account_type_display": "Cuenta Corriente",
+                  "account_number": "1234567890",
+                  "include_in_emails": true,
+                  "created_at": "2026-04-06T12:00:00Z",
+                  "updated_at": "2026-04-06T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "404": { "description": "El destinatario no tiene cuenta bancaria registrada" }
+        }
+      },
+      "post": {
+        "operationId": "createBankingInfo",
+        "tags": ["Cuenta bancaria"],
+        "summary": "Registrar cuenta bancaria",
+        "description": "Registra una cuenta bancaria para el destinatario. Es prerequisito para que el destinatario pueda recibir depósitos.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity).",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BankingInfoCreate" },
+              "example": {
+                "sbif_code": "037",
+                "account_type": "checking",
+                "account_number": "1234567890",
+                "include_in_emails": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cuenta bancaria registrada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BankingInfoResponse" },
+                "example": {
+                  "id": 456,
+                  "bank": 7,
+                  "bank_detail": {
+                    "id": 7,
+                    "name": "BANCO SANTANDER-CHILE",
+                    "sbif_code": "037",
+                    "additional_brands": "Banefe",
+                    "is_active": true
+                  },
+                  "account_type": "checking",
+                  "account_type_display": "Cuenta Corriente",
+                  "account_number": "1234567890",
+                  "include_in_emails": true,
+                  "created_at": "2026-04-06T12:00:00Z",
+                  "updated_at": "2026-04-06T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" }
+        }
+      },
+      "put": {
+        "operationId": "updateBankingInfo",
+        "tags": ["Cuenta bancaria"],
+        "summary": "Actualizar cuenta bancaria",
+        "description": "Actualiza uno o más campos de la cuenta bancaria registrada. Solo se modifican los campos incluidos en el request. Cada destinatario tiene una sola cuenta bancaria, por eso no hace falta enviar un id de cuenta.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity).",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BankingInfoUpdate" },
+              "example": {
+                "account_number": "9876543210"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cuenta bancaria actualizada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BankingInfoResponse" }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "404": { "description": "Cuenta bancaria no encontrada" }
+        }
+      }
+    },
+    "/master-entities/{master_entity_id}/payment-methods/": {
+      "get": {
+        "operationId": "listPaymentMethods",
+        "tags": ["Medios de pago"],
+        "summary": "Listar tarjetas inscritas",
+        "description": "Retorna las tarjetas activas inscritas que el destinatario (master entity actuando como `client`) puede cobrar. Hoy solo se exponen tarjetas vía Transbank OneClick.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity) que cobra con estas tarjetas.",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de tarjetas inscritas (puede ser vacía)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentMethodListResponse" },
+                "example": {
+                  "results": [
+                    {
+                      "payment_method_id": 814,
+                      "type": "card",
+                      "is_default": true,
+                      "email": "juan@ejemplo.com",
+                      "card_last4": "6623",
+                      "card_type": "Visa",
+                      "card_expiration": "12/2030",
+                      "provider": "transbank_oneclick",
+                      "payer": {
+                        "id": 482,
+                        "tax_id": "11.111.111-1",
+                        "name": "Juan Soto"
+                      },
+                      "created_at": "2026-04-06T12:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "403": { "description": "La API key no pertenece a un usuario con acceso a este destinatario" },
+          "404": { "description": "Destinatario no encontrado" }
+        }
+      }
+    },
+    "/master-entities/{master_entity_id}/settlements/": {
+      "get": {
+        "operationId": "listSettlements",
+        "tags": ["Liquidaciones"],
+        "summary": "Listar liquidaciones",
+        "description": "Retorna las liquidaciones (payouts) ejecutadas y pendientes para el destinatario. Cada liquidación agrupa los cobros con tarjeta de un período y el monto neto depositado al destinatario.",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity).",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Número de página (1-indexed). Por defecto: 1.",
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página. Por defecto: 25, máximo: 100.",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista paginada de liquidaciones",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SettlementListResponse" },
+                "example": {
+                  "count": 1,
+                  "next": null,
+                  "previous": null,
+                  "results": [
+                    {
+                      "settlement_id": 1042,
+                      "period_date": "2026-04-30",
+                      "status": "paid",
+                      "gross_total": "150000.00",
+                      "commission_total": "3570.00",
+                      "net_total": "146430.00",
+                      "paid_at": "2026-05-02T15:00:00+00:00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "403": { "description": "La API key no pertenece a un usuario con acceso a este destinatario" },
+          "404": { "description": "Destinatario no encontrado" }
+        }
+      }
+    },
+    "/master-entities/{master_entity_id}/settlements/{settlement_id}/": {
+      "get": {
+        "operationId": "getSettlement",
+        "tags": ["Liquidaciones"],
+        "summary": "Consultar detalle de una liquidación",
+        "description": "Retorna el detalle completo de una liquidación: totales y, en `items`, el desglose por cobro con tarjeta (pagador, DTEs pagados, comisión y neto).",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "master_entity_id",
+            "in": "path",
+            "required": true,
+            "description": "ID del destinatario (MasterEntity).",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "settlement_id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la liquidación.",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle de la liquidación con items inline",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SettlementDetailResponse" },
+                "example": {
+                  "settlement_id": 1042,
+                  "period_date": "2026-04-30",
+                  "status": "paid",
+                  "gross_total": "150000.00",
+                  "commission_base_total": "3000.00",
+                  "commission_iva_total": "570.00",
+                  "commission_total": "3570.00",
+                  "net_total": "146430.00",
+                  "paid_at": "2026-05-02T15:00:00+00:00",
+                  "items": [
+                    {
+                      "id": 9871,
+                      "date": "2026-04-29",
+                      "payer": { "name": "Juan Soto" },
+                      "documents": [
+                        {
+                          "dte_type": "33",
+                          "folio": "1234",
+                          "amount": "50000",
+                          "receiver_rut": "11.111.111-1",
+                          "receiver_name": "Juan Soto",
+                          "document_id": 5523
+                        }
+                      ],
+                      "gross_amount": "50000.00",
+                      "commission_base": "1000.00",
+                      "commission_iva": "190.00",
+                      "commission_total": "1190.00",
+                      "net_amount": "48810.00"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "API key inválida o no proporcionada" },
+          "403": { "description": "La API key no pertenece a un usuario con acceso a este destinatario" },
+          "404": { "description": "Liquidación no encontrada o no pertenece al destinatario" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "API Key para autenticación. Formato: `Api-Key YOUR-API-KEY`"
+      }
+    },
+    "schemas": {
+      "PaymentRequestCreate": {
+        "type": "object",
+        "required": ["recipient_id"],
+        "description": "La sesión de cobro soporta dos modos:\n\n- **Modo emisión** (default): Tupana cobra y emite un DTE nuevo. Requiere `amount`, `target_dte_type`, `dte_recipient` y `items`.\n- **Modo cobro directo**: cobra documentos ya existentes. Requiere `document_ids` y rechaza `amount`, `target_dte_type`, `dte_recipient` e `items`.",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Monto en CLP, sin decimales. Requerido en modo emisión. **No permitido si envías `document_ids`** — el monto se calcula sumando los `amount_with_iva` de los documentos.",
+            "example": 50000
+          },
+          "currency": {
+            "type": "string",
+            "description": "Moneda. Siempre `CLP`. Si se omite, se usa `CLP` por defecto.",
+            "enum": ["CLP"],
+            "default": "CLP"
+          },
+          "recipient_id": {
+            "type": "integer",
+            "description": "ID numérico del destinatario en Tupana. Debe tener cuenta bancaria registrada. En modo cobro directo, todos los documentos referenciados deben pertenecer a este destinatario (es decir, su `sender` debe coincidir).",
+            "example": 789
+          },
+          "redirect_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL a la que Tupana redirige al usuario después del pago. Si se omite, el usuario permanece en el portal de pago.",
+            "example": "https://tuapp.com/confirmation"
+          },
+          "target_dte_type": {
+            "type": "integer",
+            "description": "Tipo de DTE a emitir al confirmarse el pago. `39` = boleta afecta, `41` = boleta exenta, `33` = factura afecta. Requerido en modo emisión. **No permitido si envías `document_ids`**.",
+            "enum": [33, 39, 41],
+            "example": 39
+          },
+          "dte_recipient": {
+            "$ref": "#/components/schemas/DteRecipient"
+          },
+          "items": {
+            "type": "array",
+            "description": "Ítems del DTE. La suma de `quantity × unit_price` debe coincidir con `amount`. Requerido en modo emisión. **No permitido si envías `document_ids`**.",
+            "items": { "$ref": "#/components/schemas/PaymentRequestItem" }
+          },
+          "document_ids": {
+            "type": "array",
+            "description": "IDs de documentos existentes a cobrar (modo cobro directo). Todos deben pertenecer al `recipient_id`, compartir el mismo receptor (pagador), ser de tipo cobrable (33, 34, 39, 41, 80, 110) y no estar pagados. Si envías este campo, omite `amount`, `target_dte_type`, `dte_recipient` e `items`.\n\nCuando uses una API key de sandbox, cada documento debe tener un folio que comience con `SANDBOX` (de lo contrario el endpoint retorna `DOCUMENT_NOT_SANDBOX`).",
+            "items": { "type": "integer", "minimum": 1 },
+            "minItems": 1,
+            "example": [9871, 9872]
+          },
+          "expires_in_minutes": {
+            "type": "integer",
+            "description": "Minutos hasta que vence la sesión. Por defecto: `30`.",
+            "default": 30,
+            "example": 30
+          },
+          "skip_portal": {
+            "type": "boolean",
+            "description": "Si `true`, redirige directo a Transbank sin mostrar la pantalla de Tupana. Por defecto: `false`.",
+            "default": false
+          },
+          "auto_issue": {
+            "type": "boolean",
+            "description": "Si `true` (default), Tupana emite el DTE automáticamente al confirmarse el pago. Si `false`, debes emitirlo manualmente con `PATCH /v1/payment-requests/{id}/` enviando `{\"status\": \"issued\"}`. Solo aplica en modo emisión; ignorado en modo cobro directo (no hay DTE que emitir).",
+            "default": true
+          },
+          "external_id": {
+            "type": "string",
+            "description": "ID propio para idempotencia. Si ya existe una sesión con ese `external_id` para tu API key, se retorna la sesión original con HTTP 200.",
+            "example": "booking_abc123"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Datos adicionales de libre formato. Tupana los guarda y devuelve en webhooks y en el GET.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DteRecipient": {
+        "type": "object",
+        "required": ["rut", "name"],
+        "properties": {
+          "rut": {
+            "type": "string",
+            "description": "RUT del receptor del DTE.",
+            "example": "11111111-1"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nombre o razón social del receptor.",
+            "example": "Juan Soto"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email al que se enviará el DTE. Opcional.",
+            "example": "juan@ejemplo.com"
+          }
+        }
+      },
+      "PaymentRequestItem": {
+        "type": "object",
+        "required": ["description", "quantity", "unit_price"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Descripción del ítem.",
+            "example": "Sesión de psicoterapia"
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Cantidad.",
+            "example": 1
+          },
+          "unit_price": {
+            "type": "integer",
+            "description": "Precio unitario en CLP.",
+            "example": 50000
+          }
+        }
+      },
+      "PaymentRequestResponse": {
+        "type": "object",
+        "properties": {
+          "payment_request_id": {
+            "type": "integer",
+            "description": "ID único de la sesión de cobro.",
+            "example": 1042
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "paid", "issued", "failed", "expired", "refunded"],
+            "example": "pending"
+          },
+          "payment_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL a la que debes redirigir al usuario para que complete el pago.",
+            "example": "https://www.tupana.ai/pagos/tok_xyz"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora en que vence la sesión (UTC).",
+            "example": "2026-04-06T12:30:00Z"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha y hora de creación de la sesión (UTC).",
+            "example": "2026-04-06T12:00:00Z"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Monto del cobro en CLP.",
+            "example": 50000
+          },
+          "target_dte_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tipo de DTE que se emitirá al pagarse. `null` en modo cobro directo (no hay DTE a emitir).",
+            "example": "39"
+          },
+          "auto_issue": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Si el DTE se emite automáticamente al confirmarse el pago. `null` en modo cobro directo.",
+            "example": true
+          },
+          "external_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tu ID propio para esta sesión.",
+            "example": "booking_abc123"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Datos adicionales que enviaste al crear la sesión."
+          },
+          "issued_document_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ID del DTE emitido. `null` mientras la sesión no haya emitido el DTE. Siempre `null` en modo cobro directo.",
+            "example": 9871
+          },
+          "document_ids": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "description": "IDs de los documentos que esta sesión cobra. Lista vacía en modo emisión (donde el DTE se emite al pagarse).",
+            "example": [9871, 9872]
+          }
+        }
+      },
+      "PaymentRequestListResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PaymentRequestResponse" }
+          }
+        }
+      },
+      "BankingInfoCreate": {
+        "type": "object",
+        "required": ["account_type", "account_number"],
+        "description": "Para identificar el banco, envía **uno** de los dos campos: `sbif_code` (recomendado para integraciones) o `bank` (ID en la base de datos de Tupana). El titular de la cuenta es el mismo destinatario (`master_entity`).",
+        "properties": {
+          "sbif_code": {
+            "type": "string",
+            "description": "Código SBIF del banco (3 dígitos). Identificador estable y recomendado para integraciones externas.\n\n| Código | Banco |\n|---|---|\n| `001` | Banco de Chile |\n| `009` | Banco Internacional |\n| `014` | Scotiabank Chile |\n| `016` | Banco de Crédito e Inversiones (BCI) |\n| `028` | Banco BICE |\n| `031` | HSBC Bank (Chile) |\n| `037` | Banco Santander-Chile |\n| `039` | Banco Itaú Chile |\n| `049` | Banco Security |\n| `051` | Banco Falabella |\n| `053` | Banco Ripley |\n| `055` | Banco Consorcio |\n| `059` | Banco BTG Pactual Chile |\n| `062` | Tanner Banco Digital |",
+            "enum": ["001", "009", "014", "016", "028", "031", "037", "039", "049", "051", "053", "055", "059", "062"],
+            "example": "037"
+          },
+          "bank": {
+            "type": "integer",
+            "description": "ID en BD del banco. Obtenible vía `GET /api/banks/`. Si envías `sbif_code` no es necesario.",
+            "example": 7
+          },
+          "account_type": {
+            "type": "string",
+            "enum": ["checking", "savings", "current"],
+            "description": "Tipo de cuenta: `checking` (cuenta corriente), `savings` (cuenta de ahorros), `current` (cuenta vista).",
+            "example": "checking"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "Número de cuenta, sin guiones ni espacios.",
+            "example": "1234567890"
+          },
+          "include_in_emails": {
+            "type": "boolean",
+            "description": "Si `true` (default), Tupana incluye los datos de la cuenta en los correos de cobranza al destinatario.",
+            "default": true
+          }
+        }
+      },
+      "BankingInfoUpdate": {
+        "type": "object",
+        "description": "Todos los campos son opcionales: solo se actualizan los enviados.",
+        "properties": {
+          "sbif_code": {
+            "type": "string",
+            "description": "Código SBIF del banco (3 dígitos).\n\n| Código | Banco |\n|---|---|\n| `001` | Banco de Chile |\n| `009` | Banco Internacional |\n| `014` | Scotiabank Chile |\n| `016` | Banco de Crédito e Inversiones (BCI) |\n| `028` | Banco BICE |\n| `031` | HSBC Bank (Chile) |\n| `037` | Banco Santander-Chile |\n| `039` | Banco Itaú Chile |\n| `049` | Banco Security |\n| `051` | Banco Falabella |\n| `053` | Banco Ripley |\n| `055` | Banco Consorcio |\n| `059` | Banco BTG Pactual Chile |\n| `062` | Tanner Banco Digital |",
+            "enum": ["001", "009", "014", "016", "028", "031", "037", "039", "049", "051", "053", "055", "059", "062"],
+            "example": "037"
+          },
+          "bank": { "type": "integer", "example": 7 },
+          "account_type": { "type": "string", "enum": ["checking", "savings", "current"] },
+          "account_number": { "type": "string", "example": "9876543210" },
+          "include_in_emails": { "type": "boolean" }
+        }
+      },
+      "BankingInfoResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 456 },
+          "bank": {
+            "type": "integer",
+            "description": "ID en BD del banco.",
+            "example": 7
+          },
+          "bank_detail": {
+            "type": "object",
+            "description": "Información expandida del banco.",
+            "properties": {
+              "id": { "type": "integer", "example": 7 },
+              "name": { "type": "string", "example": "BANCO SANTANDER-CHILE" },
+              "sbif_code": { "type": "string", "example": "037" },
+              "additional_brands": { "type": "string", "nullable": true, "example": "Banefe" },
+              "is_active": { "type": "boolean", "example": true }
+            }
+          },
+          "account_type": {
+            "type": "string",
+            "enum": ["checking", "savings", "current"],
+            "example": "checking"
+          },
+          "account_type_display": {
+            "type": "string",
+            "description": "Etiqueta legible en español del tipo de cuenta.",
+            "example": "Cuenta Corriente"
+          },
+          "account_number": { "type": "string", "example": "1234567890" },
+          "include_in_emails": { "type": "boolean", "example": true },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-04-06T12:00:00Z" },
+          "updated_at": { "type": "string", "format": "date-time", "example": "2026-04-06T12:00:00Z" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error_code": { "type": "string", "example": "RECIPIENT_NOT_FOUND" },
+          "message": { "type": "string", "example": "Recipient with id 789 not found." }
+        }
+      },
+      "PaymentMethodPayer": {
+        "type": "object",
+        "description": "Pagador (dueño de la tarjeta).",
+        "properties": {
+          "id": { "type": "integer", "example": 482 },
+          "tax_id": { "type": "string", "example": "11.111.111-1" },
+          "name": { "type": "string", "example": "Juan Soto" }
+        }
+      },
+      "PaymentMethodResponse": {
+        "type": "object",
+        "properties": {
+          "payment_method_id": {
+            "type": "integer",
+            "description": "ID único del medio de pago.",
+            "example": 814
+          },
+          "type": {
+            "type": "string",
+            "enum": ["card", "bank_account", "other"],
+            "description": "Tipo del medio de pago. Hoy el endpoint solo retorna `card`.",
+            "example": "card"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Si es el medio de pago marcado como por defecto para ese pagador.",
+            "example": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email asociado a la inscripción (puede venir vacío).",
+            "example": "juan@ejemplo.com"
+          },
+          "card_last4": {
+            "type": "string",
+            "description": "Últimos 4 dígitos de la tarjeta (vacío si no es tarjeta).",
+            "example": "6623"
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Marca de la tarjeta (Visa, Mastercard, etc).",
+            "example": "Visa"
+          },
+          "card_expiration": {
+            "type": "string",
+            "description": "Vencimiento de la tarjeta en formato `MM/YYYY`.",
+            "example": "12/2030"
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["transbank_oneclick", ""],
+            "description": "Proveedor que opera la inscripción.",
+            "example": "transbank_oneclick"
+          },
+          "payer": { "$ref": "#/components/schemas/PaymentMethodPayer" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Fecha en que se inscribió el medio de pago.",
+            "example": "2026-04-06T12:00:00Z"
+          }
+        }
+      },
+      "PaymentMethodListResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PaymentMethodResponse" }
+          }
+        }
+      },
+      "SettlementListRow": {
+        "type": "object",
+        "properties": {
+          "settlement_id": { "type": "integer", "example": 1042 },
+          "period_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "Fecha del payout (cuándo se deposita el neto al destinatario).",
+            "example": "2026-04-30"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "paid", "failed"],
+            "example": "paid"
+          },
+          "gross_total": {
+            "type": "string",
+            "description": "Monto bruto total cobrado (suma de los cobros incluidos).",
+            "example": "150000.00"
+          },
+          "commission_total": {
+            "type": "string",
+            "description": "Comisión total (base + IVA) descontada al destinatario.",
+            "example": "3570.00"
+          },
+          "net_total": {
+            "type": "string",
+            "description": "Monto neto depositado al destinatario (`gross_total - commission_total`).",
+            "example": "146430.00"
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Cuándo se confirmó el depósito al destinatario (`null` mientras no esté `paid`).",
+            "example": "2026-05-02T15:00:00+00:00"
+          }
+        }
+      },
+      "SettlementListResponse": {
+        "type": "object",
+        "properties": {
+          "count": { "type": "integer", "example": 1 },
+          "next": { "type": "string", "nullable": true, "example": null },
+          "previous": { "type": "string", "nullable": true, "example": null },
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SettlementListRow" }
+          }
+        }
+      },
+      "SettlementItemDocument": {
+        "type": "object",
+        "description": "DTE pagado por el cobro de este item.",
+        "properties": {
+          "dte_type": { "type": "string", "example": "33" },
+          "folio": { "type": "string", "example": "1234" },
+          "amount": { "type": "string", "example": "50000" },
+          "receiver_rut": { "type": "string", "example": "11.111.111-1" },
+          "receiver_name": { "type": "string", "example": "Juan Soto" },
+          "document_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ID del DTE en la API de Facturación.",
+            "example": 5523
+          }
+        }
+      },
+      "SettlementItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 9871 },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "Fecha del cobro con tarjeta.",
+            "example": "2026-04-29"
+          },
+          "payer": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "example": "Juan Soto" }
+            }
+          },
+          "documents": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SettlementItemDocument" }
+          },
+          "gross_amount": { "type": "string", "example": "50000.00" },
+          "commission_base": { "type": "string", "example": "1000.00" },
+          "commission_iva": { "type": "string", "example": "190.00" },
+          "commission_total": { "type": "string", "example": "1190.00" },
+          "net_amount": { "type": "string", "example": "48810.00" }
+        }
+      },
+      "SettlementDetailResponse": {
+        "type": "object",
+        "properties": {
+          "settlement_id": { "type": "integer", "example": 1042 },
+          "period_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2026-04-30"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "paid", "failed"],
+            "example": "paid"
+          },
+          "gross_total": { "type": "string", "example": "150000.00" },
+          "commission_base_total": {
+            "type": "string",
+            "description": "Comisión sin IVA (2%% del bruto, redondeo hacia abajo sin decimales por item).",
+            "example": "3000.00"
+          },
+          "commission_iva_total": {
+            "type": "string",
+            "description": "IVA (19%%) sobre la comisión base.",
+            "example": "570.00"
+          },
+          "commission_total": {
+            "type": "string",
+            "description": "Comisión total (`commission_base_total + commission_iva_total`).",
+            "example": "3570.00"
+          },
+          "net_total": { "type": "string", "example": "146430.00" },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-05-02T15:00:00+00:00"
+          },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SettlementItem" }
+          }
+        }
+      }
+    }
+  }
+}

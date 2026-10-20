@@ -1,0 +1,85 @@
+{
+  "name": "@tupana-ai/sdk",
+  "version": "0.1.0",
+  "description": "SDK oficial de Tupana para Node.js y TypeScript: facturación electrónica SII, cobros, cesiones y webhooks.",
+  "license": "MIT",
+  "author": "Tupana <developers@tupana.ai>",
+  "homepage": "https://docs.tupana.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tupana-ai/tupana-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tupana-ai/tupana-node/issues"
+  },
+  "keywords": [
+    "tupana",
+    "sii",
+    "chile",
+    "dte",
+    "facturacion-electronica",
+    "factura",
+    "boleta",
+    "api",
+    "sdk"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./openapi": {
+      "import": {
+        "types": "./dist/openapi.d.ts",
+        "default": "./dist/openapi.js"
+      },
+      "require": {
+        "types": "./dist/openapi.d.cts",
+        "default": "./dist/openapi.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "generate": "openapi-typescript spec/openapi-v2.json --default-non-nullable=false -o src/generated/openapi-v2.ts && openapi-typescript spec/openapi-payment-requests.json --default-non-nullable=false -o src/generated/openapi-payment-requests.ts",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^20.19.0",
+    "openapi-typescript": "^7.13.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
