@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "SDK oficial de Tupana para Node.js y TypeScript: facturación electrónica SII, cobros, cesiones y webhooks.",
   "license": "MIT",
-  "author": "Tupana <developers@tupana.ai>",
+  "author": "Tupana <contacto@tupana.ai>",
   "homepage": "https://docs.tupana.ai",
   "repository": {
     "type": "git",
