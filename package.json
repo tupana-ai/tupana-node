@@ -1,6 +1,6 @@
 {
   "name": "tupana",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SDK oficial de Tupana para Node.js y TypeScript: facturación electrónica SII, cobros, cesiones y webhooks.",
   "license": "MIT",
   "author": "Tupana <contacto@tupana.ai>",

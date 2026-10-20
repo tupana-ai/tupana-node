@@ -13,7 +13,7 @@ import type {
 } from "../types.js";
 
 /** Máximo de documentos por llamada a `createBatch`. */
-export const MAX_BATCH_SIZE = 200;
+export const MAX_BATCH_SIZE = 500;
 
 const FINAL_BATCH_STATUSES = new Set(["completed", "failed"]);
 
@@ -42,7 +42,7 @@ function documentListQuery(params: DocumentListParams): Query {
 
 export class Documents extends APIResource {
   /**
-   * Emite hasta 200 DTEs en una sola llamada (`POST /documents/batch/`).
+   * Emite hasta 500 DTEs en una sola llamada (`POST /documents/batch/`).
    *
    * La emisión al SII es asíncrona: la respuesta trae el `batch_id`; consulta
    * el resultado con {@link retrieveBatch} / {@link waitForBatch} o espera el
