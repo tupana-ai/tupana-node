@@ -1,7 +1,7 @@
 # Tupana para Node.js y TypeScript
 
 [![CI](https://github.com/tupana-ai/tupana-node/actions/workflows/ci.yml/badge.svg)](https://github.com/tupana-ai/tupana-node/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@tupana-ai/sdk.svg)](https://www.npmjs.com/package/@tupana-ai/sdk)
+[![npm](https://img.shields.io/npm/v/tupana.svg)](https://www.npmjs.com/package/tupana)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 SDK oficial de la [API v2 de Tupana](https://docs.tupana.ai): facturación electrónica ante el SII, links de pago (recaudación), cesión de facturas y webhooks, desde Node.js, Bun, Deno o cualquier runtime con `fetch`.
@@ -17,7 +17,7 @@ SDK oficial de la [API v2 de Tupana](https://docs.tupana.ai): facturación elect
 ## Instalación
 
 ```bash
-npm install @tupana-ai/sdk
+npm install tupana
 ```
 
 Mientras publicamos la primera versión en npm, puedes instalarlo directo desde GitHub:
@@ -39,7 +39,7 @@ export TUPANA_API_KEY="tu-api-key"
 ## Inicio rápido: emitir una factura
 
 ```ts
-import Tupana from "@tupana-ai/sdk";
+import Tupana from "tupana";
 
 const tupana = new Tupana(); // lee TUPANA_API_KEY
 
@@ -165,7 +165,7 @@ Cada notificación trae `X-Pana-Signature`: el HMAC SHA-256 (hex) del cuerpo cru
 
 ```ts
 import express from "express";
-import { constructWebhookEvent, WebhookVerificationError } from "@tupana-ai/sdk";
+import { constructWebhookEvent, WebhookVerificationError } from "tupana";
 
 const app = express();
 
@@ -191,7 +191,7 @@ En Next.js (App Router) o cualquier runtime con `Request`, usa `await request.te
 Todos los errores heredan de `TupanaError`. Los de la API son `APIError` (o una subclase según el status) y exponen el envelope v2:
 
 ```ts
-import { APIError, RateLimitError, UnprocessableEntityError } from "@tupana-ai/sdk";
+import { APIError, RateLimitError, UnprocessableEntityError } from "tupana";
 
 try {
   await tupana.documents.createBatch({ documents });
@@ -240,10 +240,10 @@ Para endpoints de la API v2 que todavía no tienen método propio (folios, libro
 const folios = await tupana.raw("GET", "/folios/", { query: { master_entity_id: "ment_4829301923847" } });
 ```
 
-Los tipos generados del OpenAPI completo están en `@tupana-ai/sdk/openapi`:
+Los tipos generados del OpenAPI completo están en `tupana/openapi`:
 
 ```ts
-import type { components } from "@tupana-ai/sdk/openapi";
+import type { components } from "tupana/openapi";
 type FolioAvailability = components["schemas"]["FolioAvailability"];
 ```
 
@@ -261,7 +261,7 @@ type FolioAvailability = components["schemas"]["FolioAvailability"];
 CommonJS:
 
 ```js
-const { Tupana } = require("@tupana-ai/sdk");
+const { Tupana } = require("tupana");
 ```
 
 ## Agentes de IA y MCP
@@ -295,11 +295,11 @@ npm run generate # regenera src/generated desde spec/*.json
 Official Node.js / TypeScript SDK for the [Tupana API v2](https://docs.tupana.ai) — Chilean electronic invoicing (SII DTEs), payment links, invoice factoring (cessions) and webhooks.
 
 ```bash
-npm install @tupana-ai/sdk
+npm install tupana
 ```
 
 ```ts
-import Tupana from "@tupana-ai/sdk";
+import Tupana from "tupana";
 const tupana = new Tupana({ apiKey: process.env.TUPANA_API_KEY });
 const batch = await tupana.documents.createBatch({ documents: [invoice] }, { useDefaults: true });
 const result = await tupana.documents.waitForBatch(batch.batch_id);

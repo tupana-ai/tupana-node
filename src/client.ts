@@ -9,7 +9,7 @@ import { Webhooks } from "./resources/webhooks.js";
  * Cliente de la API v2 de Tupana.
  *
  * ```ts
- * import Tupana from "@tupana-ai/sdk";
+ * import Tupana from "tupana";
  * const tupana = new Tupana({ apiKey: process.env.TUPANA_API_KEY });
  * const batch = await tupana.documents.createBatch({ documents: [...] }, { useDefaults: true });
  * ```

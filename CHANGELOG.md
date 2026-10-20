@@ -9,4 +9,4 @@ Primera versión pública.
 - Reintentos con backoff exponencial y `Retry-After`; `Idempotency-Key` automático en `documents.createBatch`.
 - Errores tipados con el envelope v2 (`type`, `code`, `param`, `requestId`, `docUrl`).
 - Verificación de webhooks (`X-Pana-Signature`, HMAC SHA-256).
-- Tipos generados desde el OpenAPI v2 en `@tupana-ai/sdk/openapi`.
+- Tipos generados desde el OpenAPI v2 en `tupana/openapi`.

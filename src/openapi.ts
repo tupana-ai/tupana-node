@@ -2,7 +2,7 @@
  * Tipos generados desde el OpenAPI v2 de Tupana (`npm run generate`).
  *
  * ```ts
- * import type { components, paths } from "@tupana-ai/sdk/openapi";
+ * import type { components, paths } from "tupana/openapi";
  * type Detail = components["schemas"]["DetailItem"];
  * ```
  */
